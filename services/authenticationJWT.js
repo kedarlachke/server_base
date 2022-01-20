@@ -8,6 +8,7 @@ import { PrismaClient } from '.prisma/client/index';
 import masterdataServices from '../services/masterdataServices';
 import datetimeService from '../services/dateTimeServices'; 
 const secretKey = 'aaabbbccc';
+import fast2sms from 'fast-two-sms';
 
 
 const getUsername = async (req) =>
@@ -32,6 +33,29 @@ else{
 }
 
 
+const generateOTP = (otp_length) => {
+  // Declare a digits variable
+  // which stores all digits
+  var digits = "0123456789";
+  let OTP = "";
+  for (let i = 0; i < otp_length; i++) {
+    OTP += digits[Math.floor(Math.random() * 10)];
+  }
+  return OTP;
+};
+
+const sendSMS = async ({ message, contactNumber }, next) => {
+  try {
+    const res = await fast2sms.sendMessage({
+      authorization: process.env.FAST2SMS,
+      message,
+      numbers: [contactNumber],
+    });
+    console.log(res);
+  } catch (error) {
+    next(error);
+  }
+};
 
 
 const generateTokenUser = function (user) {
@@ -40,6 +64,239 @@ const generateTokenUser = function (user) {
   const timestamp = new Date().getTime();
   return jwt.encode({ sub: user, iat: timestamp }, secretKey);
 }
+
+
+
+
+const verifyMobileOTPJWT = async (userData, context) => {
+
+  const { client, lang, applicationid, username, password, mobile, email,mobileotp } = userData;
+
+
+  if (!userData.mobile || !userData.mobileotp) {
+    throw new Error('You must provide an mobile number and mobileotp.');
+  }
+
+  const prisma = new PrismaClient()
+
+
+
+  const userCount = await prisma.users.count({
+    where: {
+      applicationid: userData.applicationid,
+      lang: userData.lang,
+      client: userData.client,
+      mobile: userData.mobile
+    }
+  })
+
+  if (userCount == 0) {
+    throw new Error('Invalid Mobile Number.');
+  }
+  else {
+    const userFound = await prisma.users.findFirst({
+      where: {
+        applicationid: userData.applicationid,
+        lang: userData.lang,
+        client: userData.client,
+        mobile: userData.mobile
+      }
+    })
+
+    await prisma.$disconnect()
+    let validMobileotp = await bcrypt.compare(mobileotp, userFound.mobileotp);
+    if (validMobileotp) {
+
+      const token = generateTokenUser(userFound);
+      return { ...userFound, token }
+    }
+    else {
+      throw new Error('Invalid Mbile number & OTP');
+    }
+
+
+  }
+
+
+}
+
+
+
+
+
+
+
+const signInMobileJWT = async (userData, context) => {
+
+  const { client, lang, applicationid, username, password, mobile, email } = userData;
+
+
+  if (!mobile) {
+    throw new Error('You must provide mobile number.');
+  }
+
+  const prisma = new PrismaClient()
+
+
+
+  const userCount = await prisma.users.count({
+    where: {
+      applicationid: userData.applicationid,
+      lang: userData.lang,
+      client: userData.client,
+      mobile: userData.mobile
+    }
+  })
+
+  if (userCount == 0) {
+    throw new Error('Invalid mobile number or Mobile number not registered.');
+  }
+  else {
+    const userFound = await prisma.users.findFirst({
+      where: {
+        applicationid: userData.applicationid,
+        lang: userData.lang,
+        client: userData.client,
+        mobile: userData.mobile
+      }
+    })
+
+
+
+    const mobileotp = generateOTP(6);
+    const salt = await bcrypt.genSalt(10);
+    const hashmobileotp = await bcrypt.hash(mobileotp, salt);
+    const  userTobeUpdated = {...userFound,mobileotp:hashmobileotp};
+
+    console.log(userTobeUpdated);
+    console.log('mobileotp',mobileotp)
+
+    const userUpdated = await prisma.users.update({
+
+      where: {
+
+        z_id:userFound.z_id
+      },
+      data: userTobeUpdated
+    })
+
+
+    await prisma.$disconnect()
+
+    
+
+      //   await sendSMS(
+      // {
+      //   message: `Your OTP is ${mobileotp}`,
+      //   contactNumber: userUpdated.mobile,
+      // }
+    //);
+
+    return userFound;
+
+  }
+
+
+}
+
+
+
+
+
+
+const signUpMobileJWT = async (userData, //Input is user object and request
+  context) => {
+
+
+  
+  const { client, lang, applicationid, username, password, mobile, email } = userData;
+
+
+  if (!userData.mobile ) {
+    throw new Error('You must provide an mobile.');
+  }
+
+
+  const prisma = new PrismaClient()
+
+
+  const userCount = await prisma.users.count({
+    where: {
+      applicationid: userData.applicationid,
+      lang: userData.lang,
+      client: userData.client,
+      mobile: userData.mobile
+    }
+  })
+  await prisma.$disconnect()
+
+  if (userCount >= 1) {
+    throw new Error('Mobile number in use');
+  }
+  else {
+    const _idGenerated = await masterdataServices.getUniqueID();
+    const prisma = new PrismaClient()
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(password, salt);
+    const usertobeCreated=datetimeService.setDateUser( {
+      z_id: _idGenerated,
+      client,
+      lang,
+      applicationid,
+      username,
+      password: hashPassword,
+      mobile,
+      email
+    },'I',username);
+
+    const userCreated = await prisma.users.create({
+      data: usertobeCreated
+    })
+
+    const mobileotp = generateOTP(6);
+    const hashmobileotp = await bcrypt.hash(mobileotp, salt);
+    const  userTobeUpdated = {...usertobeCreated,mobileotp:hashmobileotp};
+
+    console.log(userTobeUpdated);
+    console.log('mobileotp',mobileotp)
+
+    const userUpdated = await prisma.users.update({
+
+      where: {
+
+        z_id:usertobeCreated.z_id
+      },
+      data: userTobeUpdated
+    })
+
+
+
+
+
+
+    await prisma.$disconnect()
+
+
+
+    await sendSMS(
+      {
+        message: `Your OTP is ${mobileotp}`,
+        contactNumber: userUpdated.mobile,
+      }
+    );
+
+    
+      return userUpdated;
+  
+  }
+}
+
+
+
+
+
+
+
 
 
 const signInUsernameJWT = async (userData, context) => {
@@ -98,7 +355,7 @@ const signInUsernameJWT = async (userData, context) => {
 
 
 const currentUserUsernameJWT = async (args, context) => {
-console.log('******')
+console.log('**')
   const req = context.request;
   if (req.headers && req.headers.authorization) {
 
@@ -209,6 +466,10 @@ const signUpUsernameJWT = async (userData, //Input is user object and request
     return userCreated;
   }
 }
+
+
+
+
 
 
 
@@ -373,8 +634,17 @@ const saveUsername =
 export default {
   generateTokenUser,
   signUpUsernameJWT,
+
   currentUserUsernameJWT,
   signInUsernameJWT,
+
+
+
+  signUpMobileJWT,
+  signInMobileJWT,
+  verifyMobileOTPJWT,
+
+
   saveUsername,
   users,
   deleteUsername,

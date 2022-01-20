@@ -19,6 +19,7 @@
     "express-http-proxy": "^1.6.0",
     "express-session": "^1.15.6",
     "express-session-passport-cleanup": "^1.0.3",
+    "fast-two-sms": "^3.0.0",
     "graphql": "^0.13.2",
     "http": "0.0.0",
     "jaspernode": "^1.1.1",

@@ -16,10 +16,14 @@ const resolvers =
 
     Mutation:
     {
+        signUpMobileJWT:AuthServiceJWT.signUpMobileJWT,
         signUpUsernameJWT : AuthServiceJWT.signUpUsernameJWT,
         signInUsernameJWT : AuthServiceJWT.signInUsernameJWT,
+        signInMobileJWT:AuthServiceJWT.signInMobileJWT,
+        verifyMobileOTPJWT:AuthServiceJWT.verifyMobileOTPJWT,
         saveUsername:AuthServiceJWT.saveUsername,
-        deleteUsername:AuthServiceJWT.deleteUsername
+        deleteUsername:AuthServiceJWT.deleteUsername,
+        
     }
 };
 

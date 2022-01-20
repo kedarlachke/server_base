@@ -822,6 +822,8 @@ model Users {
   dtime              String? @db.VarChar(100)
   duser              String? @db.VarChar(100)
   isdel              String? @db.VarChar(100)
+  mobileotp          String? @db.VarChar(255)
+  emailotp           String? @db.VarChar(255)
 }
 
 model Recommendations {

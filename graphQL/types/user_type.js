@@ -91,6 +91,11 @@ const typeDefs = `
         )   :   UserType       
 
 
+
+        
+
+
+
         signUpUsernameJWT
         (
             applicationid :  String,
@@ -101,6 +106,19 @@ const typeDefs = `
             password:  String,
             mobile:  String
         )   :   UserNewType     
+
+
+        signUpMobileJWT
+        (
+            applicationid :  String,
+            client:  String ,
+                lang:  String ,
+                email:  String,
+            username: String,
+            password:  String,
+            mobile:  String
+        )   :   UserNewType     
+
 
 
         signInUsername
@@ -121,6 +139,39 @@ const typeDefs = `
             password:  String
 
         )  :   UserNewType     
+
+
+
+
+        signInMobileJWT
+        (
+            applicationid :  String,
+            client:  String ,
+                lang:  String ,
+                mobile:String,
+                username: String,
+                email:String,
+            password:  String
+
+        )  :   UserNewType     
+
+
+
+        verifyMobileOTPJWT
+        (
+            applicationid :  String,
+            client:  String ,
+                lang:  String ,
+                mobile:String,
+                username: String,
+                email:String,
+            password:  String,
+            mobileotp:String
+
+        )  :   UserNewType     
+
+
+
 
         signOutUsername
           :   UserType 
